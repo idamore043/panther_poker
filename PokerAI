@@ -1,0 +1,192 @@
+import random
+
+
+class PokerAI:
+    def evaluate_hand(self, hole_cards, community_cards):
+        # Combine hole cards with community cards to form the full hand
+        full_hand = hole_cards + community_cards
+
+        # Separate cards by suit and value
+        cards_by_suit = {}
+        cards_by_value = {}
+
+        # Evaluate the strength of the hand
+        for card in full_hand:
+            suit = card['suit']
+            value = card['value']
+
+            if suit not in cards_by_suit:
+                cards_by_suit[suit] = []
+            cards_by_suit[suit].append(value)
+
+            if value not in cards_by_value:
+                cards_by_value[value] = []
+            cards_by_value[value].append(suit)
+
+            # Check for Royal Flush
+        for suit, values in cards_by_suit.items():
+            if '10' in values and 'J' in values and 'Q' in values and 'K' in values and 'A' in values:
+                return 'Royal Flush'
+
+            # Check for Straight Flush
+        for suit, values in cards_by_suit.items():
+            straight_values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+            for i in range(len(straight_values) - 4):
+                if all(value in values for value in straight_values[i:i + 5]):
+                    return 'Straight Flush'
+
+            # Check for Four of a Kind
+        for value, suits in cards_by_value.items():
+            if len(suits) >= 4:
+                return 'Four of a Kind'
+
+            # Check for Full House
+        has_three = False
+        has_pair = False
+        for value, suits in cards_by_value.items():
+            if len(suits) >= 3:
+                has_three = True
+            elif len(suits) >= 2:
+                has_pair = True
+        if has_three and has_pair:
+            return 'Full House'
+
+        # Check for Flush
+        for suit, values in cards_by_suit.items():
+            if len(values) >= 5:
+                return 'Flush'
+
+        # Check for Straight
+        for value, suits in cards_by_value.items():
+            straight_values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+            for i in range(len(straight_values) - 4):
+                if all(suit in cards_by_suit and value in cards_by_suit[suit] for value in straight_values[i:i + 5]):
+                    return 'Straight'
+
+        # Check for Three of a Kind
+        for value, suits in cards_by_value.items():
+            if len(suits) >= 3:
+                return 'Three of a Kind'
+
+        # Check for Two Pair
+        num_pairs = 0
+        for value, suits in cards_by_value.items():
+            if len(suits) >= 2:
+                num_pairs += 1
+        if num_pairs >= 2:
+            return 'Two Pair'
+
+        # Check for One Pair
+        for value, suits in cards_by_value.items():
+            if len(suits) >= 2:
+                return 'One Pair'
+
+        # If none of the above, it's High Card
+        return 'High Card'
+
+    def card_ascii(self, card):
+        suit = card['suit']
+        value = card['value']
+
+        suits_ascii = {
+            'Hearts': '♥',
+            'Diamonds': '♦',
+            'Clubs': '♣',
+            'Spades': '♠'
+        }
+
+        values_ascii = {
+            '2': '2', '3': '3', '4': '4', '5': '5',
+            '6': '6', '7': '7', '8': '8', '9': '9',
+            '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A'
+        }
+
+        return (
+            f"┌─────────┐\n"
+            f"│ {values_ascii[value]:<2}      │\n"
+            f"│         │\n"
+            f"│    {suits_ascii[suit]}    │\n"
+            f"│         │\n"
+            f"│      {values_ascii[value]:>2} │\n"
+            f"└─────────┘"
+        )
+
+class PokerGame:
+    def __init__(self, players):
+        self.deck = self.create_deck()
+        self.players = players
+        self.community_cards = []
+        self.hands = {player: [] for player in range(players)}
+
+    def create_deck(self):
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        return [{'suit': suit, 'value': value} for suit in suits for value in values]
+
+    def shuffle_deck(self):
+        random.shuffle(self.deck)
+
+    def deal_private_cards(self):
+        ai = PokerAI()
+        print("You received:")
+        for _ in range(2):
+            for player in range(self.players):
+                card = self.deck.pop()
+                self.hands[player].append(card)
+                if player == 0:  # Only print cards for the player playing the game
+                    print(ai.card_ascii(card))
+
+    def deal_community_card(self, count):
+        ai = PokerAI()
+        print("Dealt community cards:")
+        for _ in range(count):
+            card = self.deck.pop()
+            self.community_cards.append(card)
+            print(ai.card_ascii(card))
+
+    def simulate_betting_round(self):
+        # Simulate a simple betting round (not implemented here)
+        print("Simulating betting round... Everyone bets 1 chip.")
+
+    def play(self):
+        self.shuffle_deck()
+        self.deal_private_cards()
+        print("Dealt private cards to players")
+
+        self.simulate_betting_round()
+
+        # Flop
+        self.deal_community_card(3)
+        print("Dealt the Flop")
+        self.simulate_betting_round()
+
+        # Turn
+        self.deal_community_card(1)
+        print("Dealt the Turn")
+        self.simulate_betting_round()
+
+        # River
+        self.deal_community_card(1)
+        print("Dealt the River")
+        self.simulate_betting_round()
+
+        ai = PokerAI()  # Instantiate PokerAI here
+
+        # Print full hand for the player playing the game
+        hole_cards = self.hands[0]
+        community_cards = self.community_cards
+        print("Your full hand:")
+        for card in hole_cards:
+            print(ai.card_ascii(card))  # Print hole cards in ASCII format
+        for card in community_cards:
+            print(ai.card_ascii(card))  # Print community cards in ASCII format
+
+        best_hand = ai.evaluate_hand(hole_cards, community_cards)
+        print(f"The best hand to play would be: {best_hand}")
+
+        # Showdown (Not implemented)
+        print("Showdown - Not implemented in this example")
+
+        
+game = PokerGame(players=4)
+game.play()

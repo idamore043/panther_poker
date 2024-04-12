@@ -1,8 +1,73 @@
 import random
+import sys
+import io
+import numpy as np
+from collections import deque
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import Adam
 
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 class PokerAI:
-    def evaluate_hand(self, hole_cards, community_cards):
+    def __init__(self, state_size, action_size):
+        self.state_size = state_size  # Dimension of the game state
+        self.action_size = action_size  # Number of possible actions
+        self.memory = deque(maxlen=2000)  # Memory for experience replay
+        self.gamma = 0.95  # Discount rate for future rewards
+        self.epsilon = 1.0  # Exploration rate
+        self.epsilon_min = 0.01  # Minimum exploration rate
+        self.epsilon_decay = 0.995  # Decay rate for exploration probability
+        self.learning_rate = 0.001  # Learning rate
+        self.model = self._build_model()  # Build the neural network model
+        
+    def _build_model(self):
+        # Neural Net for Deep-Q learning Model
+        model = Sequential()
+        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(24, activation='relu'))
+        model.add(Dense(self.action_size, activation='linear'))
+        model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
+        return model
+
+    def remember(self, state, action, reward, next_state, done):
+        # Store experiences in memory
+        self.memory.append((state, action, reward, next_state, done))
+
+    def act(self, state):
+        # Return action based on model prediction or exploration
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
+        act_values = self.model.predict(state)
+        return np.argmax(act_values[0])  # Returns action with the highest reward prediction
+
+    def replay(self, batch_size):
+        # Train the model with experiences sampled from memory
+        minibatch = random.sample(self.memory, batch_size)
+        for state, action, reward, next_state, done in minibatch:
+            target = reward
+            if not done:
+                target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
+            target_f = self.model.predict(state)
+            target_f[0][action] = target
+            self.model.fit(state, target_f, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+    def load(self, name):
+        # Load a model
+        self.model.load_weights(name)
+
+    def save(self, name):
+        # Save the model
+        self.model.save_weights(name)
+
+class PokerLogic:
+    def evaluate_hand(self, hole_cards, community_cards):  # Evaluate the strength of a poker hand given the hole cards and community cards.
+        # Ensure hole_cards is a list
+        if isinstance(hole_cards, dict):
+            hole_cards = [hole_cards]
+
         # Combine hole cards with community cards to form the full hand
         full_hand = hole_cards + community_cards
 
@@ -23,24 +88,24 @@ class PokerAI:
                 cards_by_value[value] = []
             cards_by_value[value].append(suit)
 
-            # Check for Royal Flush
+        # Check for Royal Flush
         for suit, values in cards_by_suit.items():
             if '10' in values and 'J' in values and 'Q' in values and 'K' in values and 'A' in values:
-                return 'Royal Flush'
+                return 'Royal Flush', 10
 
-            # Check for Straight Flush
+        # Check for Straight Flush
         for suit, values in cards_by_suit.items():
             straight_values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
             for i in range(len(straight_values) - 4):
                 if all(value in values for value in straight_values[i:i + 5]):
-                    return 'Straight Flush'
+                    return 'Straight Flush', 9
 
-            # Check for Four of a Kind
+        # Check for Four of a Kind
         for value, suits in cards_by_value.items():
             if len(suits) >= 4:
-                return 'Four of a Kind'
+                return 'Four of a Kind', 8
 
-            # Check for Full House
+        # Check for Full House
         has_three = False
         has_pair = False
         for value, suits in cards_by_value.items():
@@ -49,24 +114,24 @@ class PokerAI:
             elif len(suits) >= 2:
                 has_pair = True
         if has_three and has_pair:
-            return 'Full House'
+            return 'Full House', 7
 
         # Check for Flush
         for suit, values in cards_by_suit.items():
             if len(values) >= 5:
-                return 'Flush'
+                return 'Flush', 6
 
         # Check for Straight
         for value, suits in cards_by_value.items():
             straight_values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
             for i in range(len(straight_values) - 4):
                 if all(suit in cards_by_suit and value in cards_by_suit[suit] for value in straight_values[i:i + 5]):
-                    return 'Straight'
+                    return 'Straight', 5
 
         # Check for Three of a Kind
         for value, suits in cards_by_value.items():
             if len(suits) >= 3:
-                return 'Three of a Kind'
+                return 'Three of a Kind', 4
 
         # Check for Two Pair
         num_pairs = 0
@@ -74,32 +139,25 @@ class PokerAI:
             if len(suits) >= 2:
                 num_pairs += 1
         if num_pairs >= 2:
-            return 'Two Pair'
+            return 'Two Pair', 3
 
         # Check for One Pair
         for value, suits in cards_by_value.items():
             if len(suits) >= 2:
-                return 'One Pair'
+                return 'One Pair', 2
 
         # If none of the above, it's High Card
-        return 'High Card'
+        return 'High Card', 1
 
-    def card_ascii(self, card):
+    def card_ascii(self, card):   # Return an ASCII representation of a card
         suit = card['suit']
         value = card['value']
 
-        suits_ascii = {
-            'Hearts': '♥',
-            'Diamonds': '♦',
-            'Clubs': '♣',
-            'Spades': '♠'
-        }
+        suits_ascii = {'Hearts': '♥','Diamonds': '♦','Clubs': '♣','Spades': '♠'}
 
-        values_ascii = {
-            '2': '2', '3': '3', '4': '4', '5': '5',
-            '6': '6', '7': '7', '8': '8', '9': '9',
-            '10': '10', 'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A'
-        }
+        values_ascii = {'2': '2', '3': '3', '4': '4', '5': '5','6': '6',
+                        '7': '7', '8': '8', '9': '9','10': '10',
+                        'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A'}
 
         return (
             f"┌─────────┐\n"
@@ -111,82 +169,311 @@ class PokerAI:
             f"└─────────┘"
         )
 
+    def estimate_win_chance(self, hand_strength):   # Estimate the win chance based on the strength of the hand.
+        # Rough probabilities of winning based on hand strength
+        win_chances = {
+            10: 0.90,  # Royal Flush
+            9: 0.80,  # Straight Flush
+            8: 0.70,  # Four of a Kind
+            7: 0.60,  # Full House
+            6: 0.50,  # Flush
+            5: 0.40,  # Straight
+            4: 0.30,  # Three of a Kind
+            3: 0.20,  # Two Pair
+            2: 0.10,  # One Pair
+            1: 0.05  # High Card
+        }
+        return win_chances.get(hand_strength, 0)
+
+
 class PokerGame:
-    def __init__(self, players):
+    def __init__(self, players): # Initialize a poker game with the given number of players.
+        self.continue_game = True  # New attribute to keep playing when player fold
+        self.player_out = False # New flag to check if player is out of chips
+
         self.deck = self.create_deck()
+        self.shuffle_deck()
         self.players = players
         self.community_cards = []
-        self.hands = {player: [] for player in range(players)}
+        # Modified the player to have 2 additional parameters hand strength that will vary from 10 to 1 and a very basic win rate change that will
+        # vary from .90 to .05
+        self.hands = {player: {'cards': [], 'win_rate': 0, 'hand_strength': 0} for player in range(players)}
+        self.pot = 0
+        self.player_chips = [1000] * players  # Initialize player chips with 1000 for each player
+        self.small_blind = 5  # Small blind amount
+        self.big_blind = 2 * self.small_blind  # Big blind amount
+        self.poker_logic = PokerLogic()
 
-    def create_deck(self):
+    def create_deck(self):    # Create a standard deck of 52 playing cards.
         suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
         values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         return [{'suit': suit, 'value': value} for suit in suits for value in values]
 
-    def shuffle_deck(self):
+    def shuffle_deck(self):   # Shuffle the deck of cards.
         random.shuffle(self.deck)
 
-    def deal_private_cards(self):
-        ai = PokerAI()
-        print("You received:")
+    def deal_hole_cards(self):   # Deal two private cards to each player.
         for _ in range(2):
             for player in range(self.players):
                 card = self.deck.pop()
-                self.hands[player].append(card)
+                self.hands[player]['cards'].append(card)
                 if player == 0:  # Only print cards for the player playing the game
-                    print(ai.card_ascii(card))
+                    print(self.poker_logic.card_ascii(card))
 
-    def deal_community_card(self, count):
-        ai = PokerAI()
-        print("Dealt community cards:")
+    def deal_community_card(self, count):   # Deal a specified number of community cards.
         for _ in range(count):
             card = self.deck.pop()
             self.community_cards.append(card)
-            print(ai.card_ascii(card))
+            print(self.poker_logic.card_ascii(card))
 
-    def simulate_betting_round(self):
-        # Simulate a simple betting round (not implemented here)
-        print("Simulating betting round... Everyone bets 1 chip.")
+    def hand_rank(self, hand):       # Return a numerical rank for a given hand (e.g., 'Two Pair' -> 3).
+        rank_order = {
+            'High Card': 0,
+            'One Pair': 1,
+            'Two Pair': 2,
+            'Three of a Kind': 3,
+            'Straight': 4,
+            'Flush': 5,
+            'Full House': 6,
+            'Four of a Kind': 7,
+            'Straight Flush': 8,
+            'Royal Flush': 9
+        }
+        return rank_order[hand]
+
+    def print_stacks(self): # Print the current chip stacks for each player.
+        print("\033[1mPlayer Stacks:\033[0m")
+        for player, chips in enumerate(self.player_chips):
+            if player == 0:
+                print(f"You have {chips} chips.")
+            else:
+                print(f"AI Opponent has {chips} chips.")
+
+    def print_pot(self): # Print the current total pot.
+        print("\033[1mCurrent Pot:\033[0m")
+        print(f"{self.pot} chips.")
+
+    def distribute_pot(self, winners): # Distribute the pot among the winning players.
+        share = self.pot // len(winners)
+        for winner in winners:
+            self.player_chips[winner] += share
+        self.pot = 0
+
+    def showdown(self): # Determine the winner(s) of the game and distribute the pot.
+        # Evaluate best hand for each player
+        best_hands = {player: self.poker_logic.evaluate_hand(self.hands[player]['cards'], self.community_cards) for player in range(self.players)}
+
+        # Determine the winners
+        best_hand_strength = max([hand[1] for hand in best_hands.values()])
+        winners = [player for player, hand in best_hands.items() if hand[1] == best_hand_strength]
+
+        # Distribute pot to winners
+        self.distribute_pot(winners)
+
+        # Print results for each player
+        for player in range(self.players):
+            if player == 0:
+                print("Player's hand:")
+            else:
+                print("AI Opponent's hand:")
+            for card in self.hands[player]['cards']:
+                print(self.poker_logic.card_ascii(card))
+            print(f"{'Player' if player == 0 else 'AI Opponent'}'s best hand: {best_hands[player][0]} (strength: {best_hands[player][1]})")
+            print(f"{'Player' if player == 0 else 'AI Opponent'}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
+
+        # Print community cards
+        print("Community cards:")
+        for card in self.community_cards:
+            print(self.poker_logic.card_ascii(card))
+
+        # Print winners and their winning hands
+        if len(winners) == 1:
+            print(f"Player {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
+        else:
+            print(f"It's a tie between {'Player' if 0 in winners else 'AI Opponent'} with {best_hands[winners[0]][0]}!")
+
+    def find_winner(self, player_hands):
+        best_hands = {player: self.poker_logic.evaluate_hand(player_hands[player]['cards'], self.community_cards) for player in range(self.players)}
+        best_hand_value = max(best_hands.values(), key=lambda x: self.hand_rank(x[0]))
+        winners = [player for player, hand in best_hands.items() if hand[0] == best_hand_value[0]]
+        return winners
+
+    def simulate_blind_round(self): # Simulate the initial blind betting round.
+        # Ask the player if they want to post the small blind to begin the game.
+        print("\033[1mBlind Betting:\033[0m")
+        while True:
+            action = input("Do you want to post the small blind (5 chips)? (yes/no): ")
+            if action == "yes":
+                # Subtract small blind from player 1 chips.
+                small_blind_amount = min(self.small_blind, self.player_chips[0])
+                self.player_chips[0] -= small_blind_amount
+                # Add small blind to pot.
+                self.pot += small_blind_amount
+                print(f"Player posts small blind of {small_blind_amount} chips.")
+                break
+            elif action == "no":
+                print("Player opts not to post the small blind.")
+                # AI automatically wins if player doesn't post small blind.
+                print(f"AI Opponent wins by default!")
+            else:
+                print("Invalid input. Please enter 'yes' or 'no'.")
+
+        # AI posts big blind.
+        big_blind_amount = min(self.big_blind, self.player_chips[1])
+        # Subtract big blind from AI chips.
+        self.player_chips[1] -= big_blind_amount
+        # Add big blind to pot.
+        self.pot += big_blind_amount
+        print(f"AI Opponent posts big blind of {big_blind_amount} chips.")
+        self.print_pot()
+
+    def play_private_round (self): # Method for private card rounds of poker
+        print("\033[1mDealt Private Cards to Players:\033[0m")
+        self.deal_hole_cards()
+        self.simulate_betting_round()
+        self.print_stacks()
+        self.print_pot()
+
+    def play_community_round(self, round_name, community_card_count): # Method for community card rounds of poker
+        print(f"\033[1m{round_name}:\033[0m")
+        self.deal_community_card(community_card_count)
+        self.simulate_betting_round()
+        self.print_stacks()
+        self.print_pot()
 
     def play(self):
-        self.shuffle_deck()
-        self.deal_private_cards()
-        print("Dealt private cards to players")
+        while self.player_chips[0] > 0:  # Loop until Player 1 has no chips
+            self.continue_game = True  # Reset the flag for each new game
 
-        self.simulate_betting_round()
+            self.simulate_blind_round()
+            if not self.continue_game:
+                continue
+            self.play_private_round()
+            if not self.continue_game:
+                continue
+            self.play_community_round("Dealt the Flop", 3)
+            if not self.continue_game:
+                continue
+            self.play_community_round("Dealt the Turn", 1)
+            if not self.continue_game:
+                continue
+            self.play_community_round("Dealt the River", 1)
+            if not self.continue_game:
+                continue
 
-        # Flop
-        self.deal_community_card(3)
-        print("Dealt the Flop")
-        self.simulate_betting_round()
+            self.showdown()  # Run showdown at the end of each game
 
-        # Turn
-        self.deal_community_card(1)
-        print("Dealt the Turn")
-        self.simulate_betting_round()
+            # Reset for the next game
+            self.deck = self.create_deck()  # Recreate the deck
+            self.community_cards = []  # Clear community cards
+            self.hands = {player: {'cards': [], 'win_rate': 0, 'hand_strength': 0} for player in range(self.players)}  # Reset player hands
+            self.pot = 0  # Reset the pot
+            
+        print(f"AI Opponent is out of chips. Game over!")
 
-        # River
-        self.deal_community_card(1)
-        print("Dealt the River")
-        self.simulate_betting_round()
+    def simulate_betting_round(self):
+        # Simulate a simple betting round
+        # Loop action selection until valid player action is taken
+        bet_active = False  # Flag to track if a bet has been made
+        # Simulate a simple betting round
+        for player in range(self.players):
+            if self.player_chips[player] > 0:  # Check if the player has chips to bet
+                if player == 0:
+                    while True:
+                        action = input("Player, do you want to (1) bet, (2) check, or (3) fold? ")
+                        if action in {"1", "2", "3"}:
+                            break
+                        else:
+                            raise ValueError("Invalid input. Please enter '1', '2', or '3'.")
 
-        ai = PokerAI()  # Instantiate PokerAI here
+                    if action == "1":  # Player wants to bet
+                        bet_amount = self.get_bet_amount(player)
+                        self.player_bet(player, bet_amount)
+                        bet_active = True
+                    elif action == "2":  # Player wants to check
+                        self.player_checks(bet_active)
+                    elif action == "3":  # Player wants to fold
+                        self.player_fold(player)
+                        return  # Exit the betting round
+                else:
+                    # Simulate AI actions (for simplicity, AI will always bet randomly)
+                    bet_amount = random.randint(1, self.player_chips[player])
+                    self.ai_bet(player, bet_amount)
+                    bet_active = True  # AI makes a bet
+            else:
+                print(f"Player has no chips left to bet.")
+                print(f"Player checks.")
 
-        # Print full hand for the player playing the game
-        hole_cards = self.hands[0]
-        community_cards = self.community_cards
-        print("Your full hand:")
-        for card in hole_cards:
-            print(ai.card_ascii(card))  # Print hole cards in ASCII format
-        for card in community_cards:
-            print(ai.card_ascii(card))  # Print community cards in ASCII format
+    def get_bet_amount(self, player): # Verify bet amount is valid.
+        while True:
+            try:
+                bet_amount = int(input("How many chips do you want to bet? "))
+                if bet_amount <= 0: # Bet amount must be greater than zero
+                    raise ValueError("Bet amount must be greater than 0.") 
+                elif bet_amount > self.player_chips[player]: # Bet amount cannot be larger than player chip amount
+                    raise ValueError("You don't have enough chips to bet that amount.")
+                else:
+                    return bet_amount
+            except ValueError as e: # For all other invalid cases
+                print(f"Error: {e}")
+    
+    def player_bet(self, player, bet_amount):
+        # Player bets a certain amount of chips
+        self.player_chips[player] -= bet_amount
+        self.pot += bet_amount
+        print(f"Player bets {bet_amount} chips.")
+    
+    def player_checks(self, bet_active):
+        if bet_active:
+            raise ValueError("You cannot check when a bet has been made.")
+        else:
+            print("Player checks.")
 
-        best_hand = ai.evaluate_hand(hole_cards, community_cards)
-        print(f"The best hand to play would be: {best_hand}")
+    def player_fold(self, player):
+        # Player folds
+        print("Player folds.")
 
-        # Showdown (Not implemented)
-        print("Showdown - Not implemented in this example")
+        # Determine the other player
+        other_player = 1 - player
 
-        
-game = PokerGame(players=4)
-game.play()
+        # Distribute the pot to the other player
+        print(f"AI Opponent wins by default!")
+        self.distribute_pot([other_player])
+
+        # End the game
+        # Signal to end the current game and start a new one
+        self.continue_game = False
+
+    def ai_bet(self, player, bet_amount):
+        self.player_chips[player] -= bet_amount
+        self.pot += bet_amount
+        print(f"AI Opponent bets {bet_amount} chips.")
+    
+    # Not sure if we will use the ai_check and ai_fold methods, but it can be implemented as such 
+    
+    def ai_check(self, bet_active): 
+        if bet_active:
+            raise ValueError("AI Opponent cannot check when a bet has been made.")
+        else:
+            print("AI Opponent checks.")
+    
+    def ai_fold(self, player):
+        print(f"AI Opponent folds.")
+
+        # Determine the other player
+        other_player = 1 - player
+
+        # Distribute the pot to the other player
+        print(f"Player wins by default!")
+        self.distribute_pot([other_player])
+
+        # End the game
+        # Signal to end the current game and start a new one
+        self.continue_game = False
+
+if __name__ == "__main__":
+    state_size = 52  # Number of possible unique cards
+    action_size = 3  # Bet, Check, Fold
+    agent = PokerAI(state_size, action_size)
+    game = PokerGame(players=2)
+    game.play()

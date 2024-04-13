@@ -243,10 +243,7 @@ class PokerGame:
     def print_stacks(self): # Print the current chip stacks for each player.
         print("\033[1mPlayer Stacks:\033[0m")
         for player, chips in enumerate(self.player_chips):
-            if player == 0:
-                print(f"You have {chips} chips.")
-            else:
-                print(f"AI Opponent has {chips} chips.")
+            print(f"Player {player + 1} has {chips} chips.")
 
     def print_pot(self): # Print the current total pot.
         print("\033[1mCurrent Pot:\033[0m")
@@ -291,7 +288,7 @@ class PokerGame:
         if len(winners) == 1:
             print(f"Player {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
         else:
-            print(f"It's a tie between players {', '.join([str(winner + 1) for winner in winners])} with {best_hands[winners[0]][0]}!")
+            print(f"It's a tie between Players {', '.join([str(winner + 1) for winner in winners])} with {best_hands[winners[0]][0]}!")
                 
     def find_winner(self, player_hands):
         best_hands = {player: self.poker_logic.evaluate_hand(player_hands[player]['cards'], self.community_cards) for player in range(self.players)}
@@ -310,12 +307,12 @@ class PokerGame:
                 self.player_chips[0] -= small_blind_amount
                 # Add small blind to pot.
                 self.pot += small_blind_amount
-                print(f"Player posts small blind of {small_blind_amount} chips.")
+                print(f"Player 1 posts small blind of {small_blind_amount} chips.")
                 break
             elif action == "no":
-                print("Player opts not to post the small blind.")
+                print("Player 1 opts not to post the small blind.")
                 # AI automatically wins if player doesn't post small blind.
-                print(f"AI Opponent wins by default!")
+                print("Player 2 wins by default!")
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
 
@@ -325,7 +322,8 @@ class PokerGame:
         self.player_chips[1] -= big_blind_amount
         # Add big blind to pot.
         self.pot += big_blind_amount
-        print(f"AI Opponent posts big blind of {big_blind_amount} chips.")
+        print(f"Player 2 posts big blind of {big_blind_amount} chips.")
+        self.print_stacks()
         self.print_pot()
 
     def play_private_round (self): # Method for private card rounds of poker
@@ -370,7 +368,7 @@ class PokerGame:
             self.hands = {player: {'cards': [], 'win_rate': 0, 'hand_strength': 0} for player in range(self.players)}  # Reset player hands
             self.pot = 0  # Reset the pot
             
-        print(f"AI Opponent is out of chips. Game over!")
+        print(f"Player 2 is out of chips. Game over!")
 
     def simulate_betting_round(self):
         # Simulate a simple betting round
@@ -382,7 +380,7 @@ class PokerGame:
                 if player == 0:
                     while True:
                         try:
-                            action = input("Player, do you want to (1) bet, (2) check, or (3) fold? ")
+                            action = input("Player 1, do you want to (1) bet, (2) check, or (3) fold? ")
                             if action in {"1", "2", "3"}:
                                 break  # Valid input, break out of the loop
                             else:
@@ -405,8 +403,8 @@ class PokerGame:
                     self.ai_bet(player, bet_amount)
                     bet_active = True  # AI makes a bet
             else:
-                print(f"Player {player} has no chips left to bet.")
-                print("Player checks.")
+                print(f"Player {player + 1} has no chips left to bet.")
+                print(f"Player {player + 1} checks.")
 
     def get_bet_amount(self, player): # Verify bet amount is valid.
         while True:
@@ -425,23 +423,23 @@ class PokerGame:
         # Player bets a certain amount of chips
         self.player_chips[player] -= bet_amount
         self.pot += bet_amount
-        print(f"Player bets {bet_amount} chips.")
+        print(f"Player 1 bets {bet_amount} chips.")
     
     def player_checks(self, bet_active):
         if bet_active:
-            raise ValueError("You cannot check when a bet has been made.")
+            raise ValueError("Player 1 cannot check when a bet has been made.")
         else:
-            print("Player checks.")
+            print("Player 1 checks.")
 
     def player_fold(self, player):
         # Player folds
-        print("Player folds.")
+        print("Player 1 folds.")
 
         # Determine the other player
         other_player = 1 - player
 
         # Distribute the pot to the other player
-        print(f"AI Opponent wins by default!")
+        print(f"Player 2 wins by default!")
         self.distribute_pot([other_player])
 
         # End the game
@@ -451,24 +449,24 @@ class PokerGame:
     def ai_bet(self, player, bet_amount):
         self.player_chips[player] -= bet_amount
         self.pot += bet_amount
-        print(f"AI Opponent bets {bet_amount} chips.")
+        print(f"Player 2 bets {bet_amount} chips.")
     
     # Not sure if we will use the ai_check and ai_fold methods, but it can be implemented as such 
     
     def ai_check(self, bet_active): 
         if bet_active:
-            raise ValueError("AI Opponent cannot check when a bet has been made.")
+            raise ValueError("Player 2 cannot check when a bet has been made.")
         else:
-            print("AI Opponent checks.")
+            print("Player 2 checks.")
     
     def ai_fold(self, player):
-        print(f"AI Opponent folds.")
+        print(f"Player 2 folds.")
 
         # Determine the other player
         other_player = 1 - player
 
         # Distribute the pot to the other player
-        print(f"Player wins by default!")
+        print(f"Player 1 wins by default!")
         self.distribute_pot([other_player])
 
         # End the game

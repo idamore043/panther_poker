@@ -2,8 +2,7 @@
 
 ## Description
 A Texas Hold'em simulation in Python, utilizing Q-Learning with Deep Q-Network (DQN) models to make optimal decisions. The simulation uses neural network-based decision-making for playing poker, utilizing Keras for the implementation of the models.
-The simulation supports basic poker gameplay, including betting, checking, and folding as directed by player input. It places a particular emphasis on the mechanics of betting and card management.
-The game is initialized with two players: Player 1 is controlled by user input via terminal, while Player 2 is managed by the AI. It is configured as a "five-ten" game, meaning the small blind is set at 5 chips and the big blind, contributed by the AI, is 10 chips.
+The simulation supports basic poker gameplay, including betting, checking, and folding as directed by player input. The game is initialized with two players: Player 1 is controlled by user input via terminal, while Player 2 is managed by the AI. It is configured as a "five-ten" game, meaning the small blind is set at 5 chips and the big blind, contributed by the AI, is 10 chips.
 
 ## Prerequisites
 To run this project, you will need the following:

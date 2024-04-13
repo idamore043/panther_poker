@@ -169,9 +169,9 @@ class PokerLogic:
             f"└─────────┘"
         )
 
-    def estimate_win_chance(self, hand_strength):   # Estimate the win chance based on the strength of the hand.
+    def estimate_win_rate(self, hand_strength):   # Estimate the win chance based on the strength of the hand.
         # Rough probabilities of winning based on hand strength
-        win_chances = {
+        win_rate = {
             10: 0.90,  # Royal Flush
             9: 0.80,  # Straight Flush
             8: 0.70,  # Four of a Kind
@@ -183,7 +183,7 @@ class PokerLogic:
             2: 0.10,  # One Pair
             1: 0.05  # High Card
         }
-        return win_chances.get(hand_strength, 0)
+        return win_rate.get(hand_strength, 0)
 
 class PokerGame:
     def __init__(self, players): # Initialize a poker game with the given number of players.
@@ -258,9 +258,14 @@ class PokerGame:
             self.player_chips[winner] += share
         self.pot = 0
 
-    def showdown(self): # Determine the winner(s) of the game and distribute the pot.
+    def showdown(self):
         # Evaluate best hand for each player
         best_hands = {player: self.poker_logic.evaluate_hand(self.hands[player]['cards'], self.community_cards) for player in range(self.players)}
+
+        # Update win chances based on hand strength evaluated
+        for player, (hand_name, hand_strength) in best_hands.items():
+            win_rate = self.poker_logic.estimate_win_rate(hand_strength)  # Calculate win chance
+            self.hands[player]['win_rate'] = win_rate  # Store win rate
 
         # Determine the winners
         best_hand_strength = max([hand[1] for hand in best_hands.values()])
@@ -271,14 +276,11 @@ class PokerGame:
 
         # Print results for each player
         for player in range(self.players):
-            if player == 0:
-                print("Player's hand:")
-            else:
-                print("AI Opponent's hand:")
+            print(f"Player {player + 1}'s hand:")
             for card in self.hands[player]['cards']:
                 print(self.poker_logic.card_ascii(card))
-            print(f"{'Player' if player == 0 else 'AI Opponent'}'s best hand: {best_hands[player][0]} (strength: {best_hands[player][1]})")
-            print(f"{'Player' if player == 0 else 'AI Opponent'}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
+            print(f"Player {player + 1}'s best hand: {hand_name} (strength: {hand_strength})")
+            print(f"Player {player + 1}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
 
         # Print community cards
         print("Community cards:")
@@ -289,8 +291,8 @@ class PokerGame:
         if len(winners) == 1:
             print(f"Player {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
         else:
-            print(f"It's a tie between {'Player' if 0 in winners else 'AI Opponent'} with {best_hands[winners[0]][0]}!")
-
+            print(f"It's a tie between players {', '.join([str(winner + 1) for winner in winners])} with {best_hands[winners[0]][0]}!")
+                
     def find_winner(self, player_hands):
         best_hands = {player: self.poker_logic.evaluate_hand(player_hands[player]['cards'], self.community_cards) for player in range(self.players)}
         best_hand_value = max(best_hands.values(), key=lambda x: self.hand_rank(x[0]))

@@ -364,6 +364,7 @@ class PokerGame:
 
             # Reset for the next game
             self.deck = self.create_deck()  # Recreate the deck
+            self.shuffle_deck() # Reshuffle deck
             self.community_cards = []  # Clear community cards
             self.hands = {player: {'cards': [], 'win_rate': 0, 'hand_strength': 0} for player in range(self.players)}  # Reset player hands
             self.pot = 0  # Reset the pot

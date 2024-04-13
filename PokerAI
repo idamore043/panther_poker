@@ -185,7 +185,6 @@ class PokerLogic:
         }
         return win_chances.get(hand_strength, 0)
 
-
 class PokerGame:
     def __init__(self, players): # Initialize a poker game with the given number of players.
         self.continue_game = True  # New attribute to keep playing when player fold
@@ -380,12 +379,15 @@ class PokerGame:
             if self.player_chips[player] > 0:  # Check if the player has chips to bet
                 if player == 0:
                     while True:
-                        action = input("Player, do you want to (1) bet, (2) check, or (3) fold? ")
-                        if action in {"1", "2", "3"}:
-                            break
-                        else:
-                            raise ValueError("Invalid input. Please enter '1', '2', or '3'.")
-
+                        try:
+                            action = input("Player, do you want to (1) bet, (2) check, or (3) fold? ")
+                            if action in {"1", "2", "3"}:
+                                break  # Valid input, break out of the loop
+                            else:
+                                raise ValueError("Invalid input. Please enter '1', '2', or '3'.")
+                        except ValueError as e:
+                            print(e)  # Print the error message and continue the loop
+                            continue
                     if action == "1":  # Player wants to bet
                         bet_amount = self.get_bet_amount(player)
                         self.player_bet(player, bet_amount)
@@ -401,8 +403,8 @@ class PokerGame:
                     self.ai_bet(player, bet_amount)
                     bet_active = True  # AI makes a bet
             else:
-                print(f"Player has no chips left to bet.")
-                print(f"Player checks.")
+                print(f"Player {player} has no chips left to bet.")
+                print("Player checks.")
 
     def get_bet_amount(self, player): # Verify bet amount is valid.
         while True:

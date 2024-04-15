@@ -427,7 +427,7 @@ class PokerGame:
                           print(f"{self.player_label}'s current bet: {self.hands[player].get('current_bet', 0)}")
                           action = self.get_player_action(player, current_bet)
                       else:  # AI decision-making (simplified here for demonstration)
-                          action = self.ai_decision(player, current_bet) # We need to define this method for AI actions
+                          action = self.get_ai_action(player, current_bet) # We need to define this method for AI actions
                           player_actions_completed[player] = True
 
                       if action == "check":
@@ -464,17 +464,17 @@ class PokerGame:
               break  # Exit loop if total bets match expected total for all calls
         
     def get_player_action(self, player, current_bet):
-      while True:
-          if current_bet == 0:
-            print(f"\033[1m{self.player_label}'s Turn:\033[0m")
-            print(f"{self.player_label}, would you like to 'call', 'raise', or 'fold'.")
-            response = input("Select your action: ")
-          else :
-            print(f"{self.player_label}, would you like to 'call', 'raise', or 'fold'.")
-            response = input("Select your action: ")
-          if response in ["call", "raise", "fold", "check"]:
-              return response
-          print("Invalid input.")
+        print(f"\033[1m{self.player_label}'s Turn:\033[0m")
+        while True:
+            if current_bet == 0:
+                print(f"{self.player_label}, would you like to 'call', 'raise', or 'fold'.")
+                response = input("Select your action: ")
+            else :
+                print(f"{self.player_label}, would you like to 'call', 'raise', or 'fold'.")
+                response = input("Select your action: ")
+            if response in ["call", "raise", "fold", "check"]:
+                return response
+            print("Invalid input.")
           
     def get_raise_amount(self, player, current_bet):
         while True:
@@ -535,7 +535,7 @@ class PokerGame:
         self.reset_for_new_round()
 
     ## delete Turn AI stament just there for understanding of the descition
-    def ai_decision(self, player, current_bet):
+    def get_ai_action(self, player, current_bet):
         # self.poker_logic.simple_card_print(self.hands[player]['cards'])  # For debugging purposes. AI hole cards should not be visible.
         print(f"\033[1m{self.ai_label}'s Turn:\033[0m")
         

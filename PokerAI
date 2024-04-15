@@ -63,7 +63,7 @@ class PokerAI:
         self.model.save_weights(name)
 
 class PokerLogic:
-    def evaluate_hand(self, hole_cards):  # Evaluate the strength of a poker hand given the hole cards and community cards.
+    def evaluate_hand(self, hole_cards):  # Evaluate the strength of a poker hand given the hole cards and community cards
         # Ensure hole_cards is a list
         if isinstance(hole_cards, dict):
             hole_cards = [hole_cards]
@@ -149,7 +149,7 @@ class PokerLogic:
         # If none of the above, it's High Card
         return 'High Card', 1
 
-    def card_ascii(self, card):   # Return an ASCII representation of a card
+    def card_ascii(self, card): # Return an ASCII representation of a card
         suit = card['suit']
         value = card['value']
         suits_ascii = {'Hearts': '♥','Diamonds': '♦','Clubs': '♣','Spades': '♠'}
@@ -168,7 +168,7 @@ class PokerLogic:
             f"└─────────┘"
         )
     
-    def simple_card_print(self, cards):
+    def simple_card_print(self, cards): # Simple card printing method for debugging and testing
         suits_ascii = {'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠'}
         values_ascii = {'2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
                         '7': '7', '8': '8', '9': '9', '10': '10',
@@ -183,7 +183,7 @@ class PokerLogic:
 
         print(" ".join(card_strings))
 
-    def estimate_win_rate(self, hand_strength):   # Estimate the win rate based on the strength of the hand.
+    def estimate_win_rate(self, hand_strength): # Estimate the win rate based on the strength of the hand
         # Rough probabilities of winning based on hand strength
         win_rate = {
             10: 0.90,  # Royal Flush
@@ -199,7 +199,7 @@ class PokerLogic:
         }
         return win_rate.get(hand_strength, 0)
     
-    def hand_rank(self, hand):       # Return a numerical rank for a given hand (e.g., 'Two Pair' -> 3).
+    def hand_rank(self, hand): # Return a numerical rank for a given hand (e.g., 'Two Pair' -> 3)
         rank_order = {
             'High Card': 0,
             'One Pair': 1,
@@ -215,7 +215,7 @@ class PokerLogic:
         return rank_order[hand]
 
 class PokerGame:
-    def __init__(self, players): # Initialize a poker game with the given number of players.
+    def __init__(self, players): # Initialize a poker game with the given number of players
         self.continue_game = True  # New attribute to keep playing when player fold
         self.player_out = False # New flag to check if player is out of chips
 
@@ -227,20 +227,20 @@ class PokerGame:
         # vary from .90 to .05
         self.hands = {player: {'cards': [],'current_bet':0, 'win_rate': 0, 'hand_strength': 0} for player in range(players)}
         self.pot = 0
-        self.player_chips = [1000] * players  # Initialize player chips with 1000 for each player
+        self.player_chips = [1000] * players # Initialize player chips with 1000 for each player
         self.small_blind = 5  # Small blind amount
         self.big_blind = 2 * self.small_blind  # Big blind amount
         self.poker_logic = PokerLogic()
         self.current_bet = 0  # Initialize current bet to zero
-        self.player_label = "Player 1" #Define Player's Name
+        self.player_label = "Player 1" # Define Player's Name
         self.ai_label = "Player 2"  # Define AI's Name
 
-    def create_deck(self):    # Create a standard deck of 52 playing cards.
+    def create_deck(self): # Create a standard deck of 52 playing cards
         suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
         values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         return [{'suit': suit, 'value': value} for suit in suits for value in values]
 
-    def shuffle_deck(self):   # Shuffle the deck of cards.
+    def shuffle_deck(self): # Shuffle the deck of cards
         random.shuffle(self.deck)
     
     def update_hs_and_wr(self):
@@ -251,47 +251,49 @@ class PokerGame:
             # Update win rates based on the new hand strength
             self.hands[player]['win_rate'] = self.poker_logic.estimate_win_rate(hand_strength_info[1])
     
-    def deal_hole_cards(self):   # Deal two private cards to each player.
+    def deal_hole_cards(self): # Deal two private cards to each player   
         for _ in range(2):
             for player in range(self.players):
                 card = self.deck.pop()
                 self.hands[player]['cards'].append(card)
-                if player == 0:  # Only print cards for the player playing the game
+                if player == 0: # Only print cards for the player playing the game
                     # print(self.poker_logic.card_ascii(card))
                     if len(self.hands[player]['cards']) == 2:  # Check if it's the second card to print both together
                       self.poker_logic.simple_card_print(self.hands[player]['cards'])
-        self.update_hs_and_wr()
+        self.update_hs_and_wr() # Update hand strength and win rate here  
                     
-    def deal_community_card(self, count):   # Deal a specified number of community cards.
+    def deal_community_card(self, count): # Deal a specified number of community cards   
         new_cards = []
         for _ in range(count):
             card = self.deck.pop()
             self.community_cards.append(card)
             new_cards.append(card)
-            # print(self.poker_logic.card_ascii(card))  # Print each new community card
-        self.poker_logic.simple_card_print(self.community_cards)  # Print all community cards together
-
+            # Removed ASCII card printing for debugging and testing
+            # print(self.poker_logic.card_ascii(card))
+        self.poker_logic.simple_card_print(self.community_cards) # Print all community cards together
+        
         # Append the new community cards to each player's hand
         for player in range(self.players):
             self.hands[player]['cards'].extend(new_cards)
-        self.update_hs_and_wr()
-
-    def print_stacks(self): # Print the current chip stacks for each player.
+        self.update_hs_and_wr() # Update hand strength and win rate here
+        
+    def print_stacks(self): # Print the current chip stacks for each player
         print("\033[1mPlayer Stacks:\033[0m")
         for player, chips in enumerate(self.player_chips):
             print(f"Player {player + 1} has {chips} chips.")
 
-    def print_pot(self): # Print the current total pot.
+    def print_pot(self): # Print the current total pot
         print("\033[1mCurrent Pot:\033[0m")
         print(f"{self.pot} chips.")
 
-    def distribute_pot(self, winners): # Distribute the pot among the winning players.
+    def distribute_pot(self, winners): # Distribute the pot among the winning players
         share = self.pot // len(winners)
         for winner in winners:
             self.player_chips[winner] += share
         self.pot = 0
 
     def showdown(self): # Determine the winner(s) of the game and distribute the pot.
+        print("\n\033[1mShowdown:\033[0m")
         # Evaluate best hand for each player
         best_hands = {player: self.poker_logic.evaluate_hand(self.hands[player]['cards']) for player in range(self.players)}
 
@@ -311,7 +313,7 @@ class PokerGame:
             print(f"{'Player 1' if player == 0 else 'Player 2'}'s best hand: {best_hands[player][0]} (strength: {best_hands[player][1]})")
             print(f"{'Player 1' if player == 0 else 'Player 2'}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
 
-        # Print community cards
+        # Removed ASCII card printing for debugging and testing
         # print("\033[1mCommunity Cards:\033[0m")
         # for card in self.community_cards:
         #      print(self.poker_logic.card_ascii(card))
@@ -319,10 +321,10 @@ class PokerGame:
             
         # Print winners and their winning hands
         if len(winners) == 1:
-            print(f"Player {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
+            print(f"\nPlayer {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
         else:
             tied_players = ' and '.join([f"Player {winner + 1}" for winner in winners])
-            print(f"It's a tie between {tied_players} with {best_hands[winners[0]][0]}!")
+            print(f"\nIt's a tie between {tied_players} with {best_hands[winners[0]][0]}!")
 
     def find_winner(self, player_hands):
         best_hands = {player: self.poker_logic.evaluate_hand(player_hands[player]['cards'], self.community_cards) for player in range(self.players)}
@@ -330,9 +332,9 @@ class PokerGame:
         winners = [player for player, hand in best_hands.items() if hand[0] == best_hand_value[0]]
         return winners
 
-    def simulate_blind_round(self): # Simulate the initial blind betting round.
-        # Ask the player if they want to post the small blind to begin the game.
-        print("\033[1mBlind Betting:\033[0m")
+    def simulate_blind_round(self): # Simulate the initial blind betting round
+        # Ask the player if they want to post the small blind to begin the game
+        print("\n\033[1mBlind Betting:\033[0m")
         while True:
             action = input(f"{self.player_label}, do you want to post the small blind (5 chips)? (yes/no): ")
             if action == "yes":
@@ -361,14 +363,14 @@ class PokerGame:
         self.print_pot()
 
     def play_private_round (self): # Method for private card rounds of poker
-        print("\033[1mDealt Private Cards to Players:\033[0m")
+        print("\n\033[1mDealt Private Cards to Players:\033[0m")
         self.deal_hole_cards()
         self.simulate_betting_round()
         self.print_stacks()
         self.print_pot()
 
     def play_community_round (self, round_name, community_card_count): # Method for community card rounds of poker
-        print(f"\033[1m{round_name}:\033[0m")
+        print(f"\n\033[1m{round_name}:\033[0m")
         self.deal_community_card(community_card_count)
         self.simulate_betting_round()
         self.print_stacks()

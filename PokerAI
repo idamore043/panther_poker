@@ -442,7 +442,7 @@ class PokerGame:
                           total_bets += call_amount
                           player_actions_completed[player] = True
                       elif action == "raise":
-                          raise_amount = self.get_bet_amount(player, current_bet)
+                          raise_amount = self.get_raise_amount(player, current_bet)
                           if raise_amount > current_bet:
                               self.player_bet(player, raise_amount - self.hands[player].get('current_bet', 0))
                               total_bets += raise_amount
@@ -476,7 +476,7 @@ class PokerGame:
               return response
           print("Invalid input.")
           
-    def get_bet_amount(self, player, current_bet):
+    def get_raise_amount(self, player, current_bet):
         while True:
             print(f"{self.player_label}, choose your bet amount:")
             print("1: Call the current bet.")

@@ -378,10 +378,10 @@ class PokerGame:
     
     def reset_for_new_round (self):
         self.deck = self.create_deck()  # Recreate the deck
-        self.shuffle_deck() # Reshuffle deck
+        self.shuffle_deck()  # Reshuffle deck
         self.community_cards = []  # Clear community cards
-        self.hands = {player: {'cards': [], 'win_rate': 0, 'hand_strength': 0} for player in range(self.players)}  # Reset player hands
         self.pot = 0  # Reset the pot
+        self.hands = {player: {'cards': [], 'current_bet': 0, 'win_rate': 0, 'hand_strength': 0, 'folded': False} for player in range(self.players)}
 
     def play (self):
         while self.player_chips[0] > 0:  # Loop until Player 1 has no chips
@@ -526,13 +526,10 @@ class PokerGame:
         self.hands[player]['folded'] = True
 
         # Find the remaining player who hasn't folded
-        try:
-            other_player = next(player for player in range(self.players) if not self.hands[player].get('folded', False))
-            print(f"Player {other_player + 1} wins by default!")
-            self.distribute_pot([other_player])
-        except StopIteration:
-            print("Error: No remaining players found.")
-        
+        other_player = next(player for player in range(self.players) if not self.hands[player].get('folded', False))
+        print(f"Player {other_player + 1} wins by default!")
+        self.distribute_pot([other_player])
+
         # End the game
         self.continue_game = False
         self.reset_for_new_round()
@@ -596,12 +593,9 @@ class PokerGame:
         self.hands[player]['folded'] = True
 
         # Find the remaining player who hasn't folded
-        try:
-            other_player = next(player for player in range(self.players) if not self.hands[player].get('folded', False))
-            print(f"Player {other_player + 1} wins by default!")
-            self.distribute_pot([other_player])
-        except StopIteration:
-            print("Error: No remaining players found.")
+        other_player = next(player for player in range(self.players) if not self.hands[player].get('folded', False))
+        print(f"Player {other_player + 1} wins by default!")
+        self.distribute_pot([other_player])
         
         # End the game
         self.continue_game = False

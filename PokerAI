@@ -2,12 +2,17 @@ import random
 import sys
 import io
 import numpy as np
+from tables import flushes
+from tables import unique5
+from tables import hash_values
+from tables import hash_adjust
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
+from itertools import combinations
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+#sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 class PokerAI:
     def __init__(self, state_size, action_size):
@@ -20,7 +25,7 @@ class PokerAI:
         self.epsilon_decay = 0.995  # Decay rate for exploration probability
         self.learning_rate = 0.001  # Learning rate
         self.model = self._build_model()  # Build the neural network model
-        
+
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
@@ -63,6 +68,79 @@ class PokerAI:
         self.model.save_weights(name)
 
 class PokerLogic:
+
+    # Constants for encoding
+    def __init__(self):
+        self.rank_map = {
+            '2': (2, 0), '3': (3, 1), '4': (5, 2), '5': (7, 3),
+            '6': (11, 4), '7': (13, 5), '8': (17, 6), '9': (19, 7),
+            '10': (23, 8), 'J': (29, 9), 'Q': (31, 10), 'K': (37, 11), 'A': (41, 12)
+        }
+        self.suit_map = {
+            'Clubs': 0x8000, 'Diamonds': 0x4000, 'Hearts': 0x2000, 'Spades': 0x1000
+        }
+
+    def convert_and_encode_hand(self, hand):
+        encoded_cards = []
+        for card in hand:
+            prime, rank_index = self.rank_map[card['value']]
+            suit = self.suit_map[card['suit']]
+            rank_binary = 1 << (rank_index + 16)  # Starting from bit 16
+            binary_representation = rank_binary | suit | (rank_index << 8) | prime
+            encoded_cards.append(binary_representation)
+            #print(f"  Combined binary: {bin(binary_representation)}, decimal: {binary_representation}")
+        return encoded_cards
+
+
+    def calculate_hand_value(self, encoded_hand):
+        q = 0
+        for card in encoded_hand:
+            q |= card
+        q >>= 16  # Shift to right to isolate the rank bits
+
+        SUIT_MASK = 0xF000  # Mask to isolate the suit bits
+        # Check if all cards have the same suit
+        if all((card & SUIT_MASK) == (encoded_hand[0] & SUIT_MASK) for card in encoded_hand):
+            return flushes[q]  # Return the strength of flushes or straight flushes
+
+        # Check for Straights and High Card hands
+        if unique5[q]:
+            return unique5[q]
+
+        # If not found in unique5, then calculate using hash tables
+        product = 1
+        for card in encoded_hand:
+            product *= (card & 0xff)  # Product of the rank bits of the card
+
+        hand_rank_index = self.find_fast(product)
+
+
+        return hash_values[hand_rank_index]
+
+    def find_fast(self, u):
+      original_u = u  # Store original u for debugging
+      u = (u + 0xe91aaa35) & 0xffffffff  # Emulate 32-bit unsigned addition
+      u ^= u >> 16
+      u = (u + (u << 8)) & 0xffffffff  # Emulate 32-bit unsigned addition
+      u ^= u >> 4
+      b = ((u >> 8) & 0x1ff)
+      a = ((u + (u << 2)) & 0xffffffff) >> 19  # Emulate 32-bit unsigned addition then shift
+      r = a ^ hash_adjust[b]
+      #print(f"find_fast - u: {original_u}, a: {a}, b: {b}, r: {r}")
+      return r
+
+    def eval_7hand(self, hand):
+        best_value = 9999  # Use a high value that will be overwritten by any valid poker hand value
+        best_hand = None
+        for combo in combinations(hand, 5):  # Generates all 5-card combinations from the 7-card hand
+            converted_hand = self.convert_and_encode_hand(combo)
+            hand_value = self.calculate_hand_value(converted_hand)
+            if hand_value < best_value:
+                best_value = hand_value
+                best_hand = combo
+        return best_value, best_hand
+
+
     def evaluate_hand(self, hole_cards):  # Evaluate the strength of a poker hand given the hole cards and community cards
         # Ensure hole_cards is a list
         if isinstance(hole_cards, dict):
@@ -167,7 +245,7 @@ class PokerLogic:
             f"│      {values_ascii[value]:>2} │\n"
             f"└─────────┘"
         )
-    
+
     def simple_card_print(self, cards): # Simple card printing method for debugging and testing
         suits_ascii = {'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠'}
         values_ascii = {'2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
@@ -198,7 +276,7 @@ class PokerLogic:
             1: 0.05  # High Card
         }
         return win_rate.get(hand_strength, 0)
-    
+
     def hand_rank(self, hand): # Return a numerical rank for a given hand (e.g., 'Two Pair' -> 3)
         rank_order = {
             'High Card': 0,
@@ -242,7 +320,7 @@ class PokerGame:
 
     def shuffle_deck(self): # Shuffle the deck of cards
         random.shuffle(self.deck)
-    
+
     def update_hs_and_wr(self):
         for player in range(self.players):
             # Evaluate the current hand strength
@@ -250,8 +328,8 @@ class PokerGame:
             self.hands[player]['hand_strength'] = hand_strength_info[1]
             # Update win rates based on the new hand strength
             self.hands[player]['win_rate'] = self.poker_logic.estimate_win_rate(hand_strength_info[1])
-    
-    def deal_hole_cards(self): # Deal two private cards to each player   
+
+    def deal_hole_cards(self): # Deal two private cards to each player
         for _ in range(2):
             for player in range(self.players):
                 card = self.deck.pop()
@@ -260,9 +338,9 @@ class PokerGame:
                     # print(self.poker_logic.card_ascii(card))
                     if len(self.hands[player]['cards']) == 2:  # Check if it's the second card to print both together
                       self.poker_logic.simple_card_print(self.hands[player]['cards'])
-        self.update_hs_and_wr() # Update hand strength and win rate here  
-                    
-    def deal_community_card(self, count): # Deal a specified number of community cards   
+        self.update_hs_and_wr() # Update hand strength and win rate here
+
+    def deal_community_card(self, count): # Deal a specified number of community cards
         new_cards = []
         for _ in range(count):
             card = self.deck.pop()
@@ -271,12 +349,12 @@ class PokerGame:
             # Removed ASCII card printing for debugging and testing
             # print(self.poker_logic.card_ascii(card))
         self.poker_logic.simple_card_print(self.community_cards) # Print all community cards together
-        
+
         # Append the new community cards to each player's hand
         for player in range(self.players):
             self.hands[player]['cards'].extend(new_cards)
         self.update_hs_and_wr() # Update hand strength and win rate here
-        
+
     def print_stacks(self): # Print the current chip stacks for each player
         print("\033[1mPlayer Stacks:\033[0m")
         for player, chips in enumerate(self.player_chips):
@@ -292,39 +370,35 @@ class PokerGame:
             self.player_chips[winner] += share
         self.pot = 0
 
-    def showdown(self): # Determine the winner(s) of the game and distribute the pot.
-        print("\n\033[1mShowdown:\033[0m")
-        # Evaluate best hand for each player
-        best_hands = {player: self.poker_logic.evaluate_hand(self.hands[player]['cards']) for player in range(self.players)}
+    def showdown(self):
+        # Evaluate the best hand for each player using the updated 7-card evaluation method
+        for player in range(self.players):
+            best_hand_value, best_hand_cards = self.poker_logic.eval_7hand(self.hands[player]['cards'])
+            self.hands[player]['best_hand_value'] = best_hand_value  # Store the best hand value
+            self.hands[player]['best_hand_cards'] = best_hand_cards  # Store the best hand cards
 
-        # Determine the winners
-        best_hand_strength = max([hand[1] for hand in best_hands.values()])
-        winners = [player for player, hand in best_hands.items() if hand[1] == best_hand_strength]
+        # Determine the winner based on the best hand values
+        best_hand_value = min([hand['best_hand_value'] for hand in self.hands.values()])  # Assuming lower values are better
+        winners = [player for player, hand in self.hands.items() if hand['best_hand_value'] == best_hand_value]
 
         # Distribute pot to winners
         self.distribute_pot(winners)
-        
-        # Print results for each player
+
+        # Print results for each player and the winner
         for player in range(self.players):
-            print(f"Player {player + 1}'s hand:")
-            self.poker_logic.simple_card_print(self.hands[player]['cards'])
-            # print(self.poker_logic.card_ascii(card))
+            player_type = "Player" if player == 0 else "AI Opponent"
+            print(f"{player_type}'s best hand value: {self.hands[player]['best_hand_value']}")
+            print(f"{player_type}'s best hand composition:")
+            self.poker_logic.simple_card_print(self.hands[player]['best_hand_cards'])  # Correct reference to simple_card_print
+            print(f"{player_type}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
 
-            print(f"{'Player 1' if player == 0 else 'Player 2'}'s best hand: {best_hands[player][0]} (strength: {best_hands[player][1]})")
-            print(f"{'Player 1' if player == 0 else 'Player 2'}'s estimated win rate: {self.hands[player]['win_rate']:.2f}%")
-
-        # Removed ASCII card printing for debugging and testing
-        # print("\033[1mCommunity Cards:\033[0m")
-        # for card in self.community_cards:
-        #      print(self.poker_logic.card_ascii(card))
-        #    self.poker_logic.simple_card_print(self.community_cards)
-            
-        # Print winners and their winning hands
+        # Print winners
         if len(winners) == 1:
-            print(f"\nPlayer {winners[0] + 1} wins with {best_hands[winners[0]][0]}!")
+            print(f"The winner is {'Player' if winners[0] == 0 else 'AI Opponent'} with a hand value of {self.hands[winners[0]]['best_hand_value']}.")
         else:
-            tied_players = ' and '.join([f"Player {winner + 1}" for winner in winners])
-            print(f"\nIt's a tie between {tied_players} with {best_hands[winners[0]][0]}!")
+            print("It's a tie between the following players:")
+            for winner in winners:
+                print(f"{'Player' if winner == 0 else 'AI Opponent'} with a hand value of {self.hands[winner]['best_hand_value']}")
 
     def find_winner(self, player_hands):
         best_hands = {player: self.poker_logic.evaluate_hand(player_hands[player]['cards'], self.community_cards) for player in range(self.players)}
@@ -351,7 +425,7 @@ class PokerGame:
                 print(f"{self.ai_label} wins by default!")
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
-                
+
         # AI posts big blind.
         big_blind_amount = min(self.big_blind, self.player_chips[1])
         # Subtract big blind from AI chips.
@@ -375,7 +449,7 @@ class PokerGame:
         self.simulate_betting_round()
         self.print_stacks()
         self.print_pot()
-    
+
     def reset_for_new_round (self):
         self.deck = self.create_deck()  # Recreate the deck
         self.shuffle_deck()  # Reshuffle deck
@@ -407,7 +481,7 @@ class PokerGame:
 
             # Reset for the next game
             self.reset_for_new_round()
-            
+
             # After exiting the loop, identify which player(s) ran out of chips.
             for i, chips in enumerate(self.player_chips):
                 if chips <= 0:
@@ -417,7 +491,7 @@ class PokerGame:
       current_bet = 0
       total_bets = 0
       player_actions_completed = [False] * self.players
-      
+
       while not all(player_actions_completed):
           for player in range(self.players):
               if self.player_chips[player] > 0 and not self.hands[player].get('folded', False):
@@ -462,7 +536,7 @@ class PokerGame:
           # Check if the round should end
           if total_bets == current_bet * sum(not self.hands[i].get('folded', False) for i in range(self.players)):
               break  # Exit loop if total bets match expected total for all calls
-        
+
     def get_player_action(self, player, current_bet):
         print(f"\033[1m{self.player_label}'s Turn:\033[0m")
         while True:
@@ -475,7 +549,7 @@ class PokerGame:
             if response in ["call", "raise", "fold", "check"]:
                 return response
             print("Invalid input.")
-          
+
     def get_raise_amount(self, player, current_bet):
         while True:
             print(f"{self.player_label}, choose your bet amount:")
@@ -511,7 +585,7 @@ class PokerGame:
         print(f"{self.player_label} bets {bet_amount} chips.")
         # Ensure current_bet on the game level is updated to reflect the highest current bet
         self.current_bet = max(self.current_bet, self.hands[player]['current_bet'])
-    
+
     def player_checks(self, bet_active):
         if bet_active:
             raise ValueError(f"{self.player_label} cannot check when a bet has been made.")
@@ -538,8 +612,8 @@ class PokerGame:
     def get_ai_action(self, player, current_bet):
         # self.poker_logic.simple_card_print(self.hands[player]['cards'])  # For debugging purposes. AI hole cards should not be visible.
         print(f"\033[1m{self.ai_label}'s Turn:\033[0m")
-        
-        # AI win rate and hand strength should not be visible. 
+
+        # AI win rate and hand strength should not be visible.
         hand_strength = self.poker_logic.evaluate_hand(self.hands[player]['cards'])[1]
         win_rate = self.poker_logic.estimate_win_rate(hand_strength)
         # print(f"{self.ai_label}'s hand strength: {hand_strength}")
@@ -584,7 +658,7 @@ class PokerGame:
             print(f"{self.ai_label} checks. No bet to match.")
         else:
             print(f"{self.ai_label} cannot check because there is a bet to match.")
-    
+
     def ai_fold(self, player):
         # AI folds
         print(f"{self.ai_label} folds.")
@@ -596,7 +670,7 @@ class PokerGame:
         other_player = next(player for player in range(self.players) if not self.hands[player].get('folded', False))
         print(f"Player {other_player + 1} wins by default!")
         self.distribute_pot([other_player])
-        
+
         # End the game
         self.continue_game = False
         self.reset_for_new_round()

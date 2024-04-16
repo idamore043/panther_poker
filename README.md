@@ -27,9 +27,9 @@ python PokerAI.py
 ### 1. Blind Betting and Card Dealing
 If you choose to participate in the blind betting phase: Two private cards, known as **hole cards**, are dealt to each player. As Player 1, you will be prompted with the following options: <br />
 > **(1) Raise:** You can bet any one of three predetermined amounts. <br />
-  1: Call the current bet.
-  2: Raise by 25 chips.
-  3: Raise by 50 chips.
+  1: Call the current bet.<br />
+  2: Raise by 25 chips.<br />
+  3: Raise by 50 chips.<br />
 > **(2) Call:** You can pass the action to the next player without making a bet, but only if no bet has been placed during the current round. <br />
 > **(3) Fold:** You can fold your hand, which means forfeiting your chance to win the pot in the current game. Your opponent wins by default. <br />
 ### 2. Betting Restrictions

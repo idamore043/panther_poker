@@ -1,7 +1,7 @@
 # Panther Poker
 
 ## Description
-A Texas Hold'em simulation in Python, utilizing FCR models to make optimal decisions.
+A Texas Hold'em simulation in Python, utilizing CFR models to make optimal decisions.
 The simulation supports basic poker gameplay, including raising, checking, and folding as directed by player input. The game is initialized with two players: Player 1 is controlled by user input via terminal, while Player 2 is managed by the AI. It is configured as a "five-ten" game, meaning the small blind is set at 5 chips and the big blind, contributed by the AI, is 10 chips.
 
 ## Prerequisites

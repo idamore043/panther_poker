@@ -5,8 +5,8 @@ A Texas Hold'em simulation in Python, utilizing CFR models to make optimal decis
 
 ## Requirements
 This project requires the following Python packages, which can be installed using the following commands:
-> pip install numpy
-> pip install tables
+> pip install numpy <br />
+> pip install tables <br />
 
 ## Usage
 > python PokerAI.py
